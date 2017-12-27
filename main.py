@@ -75,21 +75,20 @@ def reaction(rx, state, signals, t):
 
 
 def simulate(rx, initial_state, signals, t_stop, t_check, n):
-    t = 0
     state = initial_state.copy()
     results = []
 
     if t_stop == None:
         n_ss = 2 
         t_stop = float(n_ss)/min(rate for _, _, _, _, rate in rx)
-     
+    
     for i in range(n):
+        t = 0
         run_results = []
         while t < t_stop:
             t = reaction(rx, state, signals, t)
             if t > t_check:
                 run_results.append((t, state.copy()))
-                print(t, state)
 
         results.append(run_results)
     return results
@@ -103,7 +102,7 @@ def main():
                            simulate(rx, initial_state, signals_2, t_stop, t_check, n)
     
     for results in (results_1, results_2):
-        print(results)
+        # print(results)
         p2_dist = [run_results[-1][1]['p2'] for run_results in results]
         p2_mean = sum(p2_dist)/float(len(p2_dist))
         print(p2_mean)
