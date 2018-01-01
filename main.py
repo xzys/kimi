@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import random
+from random import randint
 from math import log1p
 
 rx = [
@@ -128,6 +129,31 @@ def ode_sim(rx, initial_state, signals, t_stop, t_check):
 
         results.append(run_results)
     return results
+
+def param_opt_gradient(rx, inital_state, signals_1,signals_2,t_stop,t_check):
+    p1, p2 = ode_sim(rx, initial_state, signals_1, t_stop, t_check), ode_sim(rx, initial_state, signals_2, t_stop, t_check)
+    rmax = 1
+    fmin = 2
+    alpha = True
+    while alpha == True:
+        beta = True
+        while beta == True:
+            m, r, p = randint(0,len(rx)-1), random.uniform(0.1,0.5), random.choice([-1,1])
+            _, _, _, _, rate = rx[m]
+            rate = rate * (1 + p * r)
+            if rate < rmax:
+                beta = False
+            else:
+                rate = rate / (1 + p * r)
+        p1n, p2n = ode_sim(rx, initial_state, signals_1, t_stop, t_check), ode_sim(rx, initial_state, signals_2, t_stop, t_check)
+        if (p2-p1) > (p2n-p1n):
+            rate = rate / (1 + p * r)
+        if (p2-p1) * fmin < (p2n-p1n):
+            alpha = False
+    return rx
+
+def param_opt_anneal(rx):
+    
 
 def main():
     t_check = 0.1
