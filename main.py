@@ -2,22 +2,24 @@
 import random
 from random import randint
 from math import log1p
+from math import exp
+import numpy as np
 
 rx = [
     # gene          # dependencies    # signals     # modifications                       # rate
-    ("gene1",       ["g1"],           ["s1"],       [("g1", -1), ("ga1", 1)],             0.1),
-    ("gene1",       ["ga1"],          [],           [("g1", 1), ("ga1", -1)],             0.05),
-    ("gene1",       ["ga1"],          [],           [("m1", 1)],                          0.1),
-    ("gene1",       ["m1"],           [],           [("m1", -1)],                         0.01),
-    ("gene1",       ["m1"],           [],           [("p1", 1)],                          0.2),
-    ("gene1",       ["p1"],           [],           [("p1", -1)],                         0.01),
+    ["gene1",       ["g1"],           ["s1"],       [("g1", -1), ("ga1", 1)],             0.1],
+    ["gene1",       ["ga1"],          [],           [("g1", 1), ("ga1", -1)],             0.05],
+    ["gene1",       ["ga1"],          [],           [("m1", 1)],                          0.1],
+    ["gene1",       ["m1"],           [],           [("m1", -1)],                         0.01],
+    ["gene1",       ["m1"],           [],           [("p1", 1)],                          0.2],
+    ["gene1",       ["p1"],           [],           [("p1", -1)],                         0.01],
 
-    ("gene2",       ["g2", "p1"],     [],           [("g2", -1), ("ga2", 1), ("p1", -1)], 0.1),
-    ("gene2",       ["ga2"],          [],           [("g2", 1), ("ga2", -1), ("p1", 1)],  0.05),
-    ("gene2",       ["ga2"],          [],           [("m2", 1)],                          0.1),
-    ("gene2",       ["m2"],           [],           [("m2", -1)],                         0.01),
-    ("gene2",       ["m2"],           [],           [("p2", 1)],                          0.2),
-    ("gene2",       ["p2"],           [],           [("p2", -1)],                         0.01),
+    ["gene2",       ["g2", "p1"],     [],           [("g2", -1), ("ga2", 1), ("p1", -1)], 0.1],
+    ["gene2",       ["ga2"],          [],           [("g2", 1), ("ga2", -1), ("p1", 1)],  0.05],
+    ["gene2",       ["ga2"],          [],           [("m2", 1)],                          0.1],
+    ["gene2",       ["m2"],           [],           [("m2", -1)],                         0.01],
+    ["gene2",       ["m2"],           [],           [("p2", 1)],                          0.2],
+    ["gene2",       ["p2"],           [],           [("p2", -1)],                         0.01],
 ]
 
 signals_1 = {"s1" : 0.1}
@@ -74,14 +76,22 @@ def reaction(rx, state, signals, t):
     t = update_time(t, b)
     return t
 
-
 def stoch_sim(rx, initial_state, signals, t_stop, t_check, n):
     state = initial_state.copy()
     results = []
 
     if t_stop == None:
         n_ss = 2
-        t_stop = float(n_ss)/min(rate for _, _, _, _, rate in rx)
+        ode_result = ode_sim(rx, initial_state, signals_1, t_stop, t_check)
+        x = []
+        for gene, depends, sig, mods, rate in rx:
+            dep = 1.0
+            for s in sig:
+                dep = dep * signals[s]
+            for d in depends:
+                dep = dep * ode_result[-1][-1][1][d]
+            x.append(rate * dep)
+        t_stop = float(n_ss)/min(x)
 
     for i in range(n):
         t = 0
@@ -130,50 +140,109 @@ def ode_sim(rx, initial_state, signals, t_stop, t_check):
         results.append(run_results)
     return results
 
-def param_opt_gradient(rx, inital_state, signals_1,signals_2,t_stop,t_check):
-    p1, p2 = ode_sim(rx, initial_state, signals_1, t_stop, t_check), ode_sim(rx, initial_state, signals_2, t_stop, t_check)
-    rmax = 1
-    fmin = 2
+def gradient(rx, initial_state, signals_1, signals_2, t_stop, t_check):
+    results_1, results_2 = ode_sim(rx, initial_state, signals_1, t_stop, t_check), ode_sim(rx, initial_state, signals_2, t_stop, t_check)
+    bo = abs(results_1[-1][-1][1]['p2'] - results_2[-1][-1][1]['p2'])
+    rmax = 1.0
+    fmin = 2.0
     alpha = True
     while alpha == True:
         beta = True
         while beta == True:
-            m, r, p = randint(0,len(rx)-1), random.uniform(0.1,0.5), random.choice([-1,1])
-            _, _, _, _, rate = rx[m]
+            m, r, p = randint(0,len(rx)-1), random.uniform(0.5,0.7), random.choice([-1,1])
+            rate = rx[m][4]
             rate = rate * (1 + p * r)
             if rate < rmax:
                 beta = False
+                rx[m][4] = rate
             else:
                 rate = rate / (1 + p * r)
-        p1n, p2n = ode_sim(rx, initial_state, signals_1, t_stop, t_check), ode_sim(rx, initial_state, signals_2, t_stop, t_check)
-        if (p2-p1) > (p2n-p1n):
+        results_1n, results_2n = ode_sim(rx, initial_state, signals_1, t_stop, t_check), ode_sim(rx, initial_state, signals_2, t_stop, t_check)
+        bn = abs(results_1n[-1][-1][1]['p2'] - results_2n[-1][-1][1]['p2'])
+        if bo > bn:
             rate = rate / (1 + p * r)
-        if (p2-p1) * fmin < (p2n-p1n):
+            rx[m][4] = rate
+        if bo * fmin < bn:
             alpha = False
     return rx
 
-def param_opt_anneal(rx):
-    
+def accept_prob(bo, bn, T):
+    if bn < bo:
+        prob = 1.0
+    else:
+        prob = exp(-abs(bo - bn) / T)
+    return prob
+
+def calc_overlap(results_1, results_2):
+    p2_values_1 = [run_results[-1][1]['p2'] for run_results in results_1]
+    p2_values_2 = [run_results[-1][1]['p2'] for run_results in results_2]
+    p2_max, overlap_1, overlap_2, overlap = max(p2_values_2), 0, 0, 0
+    bin_size = int(p2_max / 100)
+    if bin_size == 0:
+        bin_size = 1
+    for i in range(0,p2_max,bin_size):
+        p2_bin_1, p2_bin_2 = 0, 0
+        for j in range(i,i+bin_size):
+            p2_bin_1 += p2_values_1.count(j)
+            p2_bin_2 += p2_values_2.count(j)
+        if p2_bin_2 > 0:
+            overlap_1 += p2_bin_1 / float(len(p2_values_1))
+        if p2_bin_1 > 0:
+            overlap_2 += p2_bin_2 / float(len(p2_values_2))
+    overlap = max(overlap_1,overlap_2)
+    return overlap
+
+def param_opt_gradient(rx, initial_state, signals_1, signals_2, t_stop, t_check, n):
+    overlap = 1.0
+    while overlap >= 0.05:
+        gradient(rx, initial_state, signals_1, signals_2, t_stop, t_check)
+        results_1, results_2 = stoch_sim(rx, initial_state, signals_1, t_stop, t_check, n), \
+                           stoch_sim(rx, initial_state, signals_2, t_stop, t_check, n)
+        overlap = calc_overlap(results_1, results_2)
+        print(overlap)
+    return results_1, results_2
+
+def param_opt_anneal(rx, initial_state, signals_1, signals_2, t_stop, t_check, n):
+    rmax = 1.0
+    T = 10.0
+    cooling_rate = 0.3
+    results_1, results_2 = stoch_sim(rx, initial_state, signals_1, t_stop, t_check, n), stoch_sim(rx, initial_state, signals_2, t_stop, t_check, n)
+    bo = calc_overlap(results_1, results_2)
+    while bo > 0.5:
+        beta = True
+        while beta == True:
+            m, r, p = randint(0,len(rx)-1), random.uniform(0.5,0.7), random.choice([-1,1])
+            rate = rx[m][4]
+            rate = rate * (1 + p * r)
+            if rate > 0 and rate < rmax:
+                beta = False
+                rx[m][4] = rate
+            else:
+                rate = rate / (1 + p * r)
+        results_1n, results_2n = stoch_sim(rx, initial_state, signals_1, t_stop, t_check, n), stoch_sim(rx, initial_state, signals_2, t_stop, t_check, n)
+        bn = calc_overlap(results_1n, results_2n)
+        if T > 0.001:
+            prob = accept_prob(bo, bn, T)
+        else:
+            prob = 0
+        ran = random.uniform(0,1)
+        if ran > prob:
+            rate = rate / (1 + p * r)
+            rx[m][4] = rate
+        else:
+            bo = calc_overlap(results_1n, results_2n)
+        T = T * (1 - cooling_rate)
+        print(T,bo,ran,prob)
+    return results_1n, results_2n
 
 def main():
     t_check = 0.1
     t_stop = None
-    n = 1000
+    n = 100
 
-    results_1, results_2 = stoch_sim(rx, initial_state, signals_1, t_stop, t_check, n), \
-                           stoch_sim(rx, initial_state, signals_2, t_stop, t_check, n)
+    results_1, results_2 = param_opt_anneal(rx, initial_state, signals_1,signals_2,t_stop,t_check, n)
 
     for results in (results_1, results_2):
-        # print(results)
-        p2_dist = [run_results[-1][1]['p2'] for run_results in results]
-        p2_mean = sum(p2_dist)/float(len(p2_dist))
-        print(p2_mean)
-
-    results_3, results_4 = ode_sim(rx, initial_state, signals_1, t_stop, t_check), \
-                           ode_sim(rx, initial_state, signals_2, t_stop, t_check)
-
-    for results in (results_3, results_4):
-        # print(results)
         p2_dist = [run_results[-1][1]['p2'] for run_results in results]
         p2_mean = sum(p2_dist)/float(len(p2_dist))
         print(p2_mean)
