@@ -43,8 +43,8 @@ react rxs c@(CellState t mols) =
           | otherwise = indexFreqs (r1 - f) xs
       -- add all products, subtract all reactants
       applyReaction (Reaction _ rs _ ps _) mols = 
-        flip (foldr (M.adjust (-1 +))) rs 
-             (foldr (M.adjust (1 +)) mols ps)
+          flip (foldr (M.adjust (-1 +))) rs
+               (foldr (M.adjust (1 +)) mols ps)
       -- update time, expects r in (0, total)
       updateTime r2 = t + ((log1p $ 1.0 / r2) / fromIntegral total)
   in do
@@ -59,10 +59,10 @@ react rxs c@(CellState t mols) =
 -- run until stop time
 simulate' :: [Reaction] -> CellState -> Double -> IO CellState 
 simulate' rxs c@(CellState t mols) stop
-  | t < stop = do
-    c' <- react rxs c
-    simulate' rxs c' stop
-  | otherwise = return c
+    | t < stop = do
+        c' <- react rxs c
+        simulate' rxs c' stop
+    | otherwise = return c
 
 -- assign stop time based on multiple of steady state
 simulate :: [Reaction] -> CellState -> Int -> IO CellState 
