@@ -87,13 +87,20 @@ simulate rxs initMols signals n =
   in  simulate' rxs signals c tstop
 
 
-reactions = [
-   Reaction { gene = "gene1", reactants = ["g1"],  catalysts = [],      products = ["ga1"], signals = ["s1"], rate = 0.1  }
-  ,Reaction { gene = "gene1", reactants = ["ga1"], catalysts = [],      products = ["g1"],  signals = [],     rate = 0.05 }
-  ,Reaction { gene = "gene1", reactants = [],      catalysts = ["ga1"], products = ["m1"],  signals = [],     rate = 0.1  }
-  ,Reaction { gene = "gene1", reactants = ["m1"],  catalysts = [],      products = [],      signals = [],     rate = 0.01 }
-  ,Reaction { gene = "gene1", reactants = ["m1"],  catalysts = [],      products = ["p1"],  signals = [],     rate = 0.2  }
-  ,Reaction { gene = "gene1", reactants = ["p1"],  catalysts = [],      products = [],      signals = [],     rate = 0.01 }
+reactions = 
+  [ Reaction { gene = "gene1", reactants = ["g1"],       catalysts = [],      products = ["ga1"],      signals = ["s1"], rate = 0.1  }
+  , Reaction { gene = "gene1", reactants = ["ga1"],      catalysts = [],      products = ["g1"],       signals = [],     rate = 0.05 }
+  , Reaction { gene = "gene1", reactants = [],           catalysts = ["ga1"], products = ["m1"],       signals = [],     rate = 0.1  }
+  , Reaction { gene = "gene1", reactants = ["m1"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
+  , Reaction { gene = "gene1", reactants = ["m1"],       catalysts = [],      products = ["p1"],       signals = [],     rate = 0.2  }
+  , Reaction { gene = "gene1", reactants = ["p1"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
+
+  , Reaction { gene = "gene2", reactants = ["g2", "p1"], catalysts = [],      products = ["ga2"],      signals = ["s1"], rate = 0.1  }
+  , Reaction { gene = "gene2", reactants = ["ga2"],      catalysts = [],      products = ["p1", "g2"], signals = [],     rate = 0.05 }
+  , Reaction { gene = "gene2", reactants = [],           catalysts = ["ga2"], products = ["m2"],       signals = [],     rate = 0.1  }
+  , Reaction { gene = "gene2", reactants = ["m2"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
+  , Reaction { gene = "gene2", reactants = ["m2"],       catalysts = [],      products = ["p2"],       signals = [],     rate = 0.2  }
+  , Reaction { gene = "gene2", reactants = ["p2"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
   ]
 
 initMols = M.fromList [("g1", 1), ("g2", 1)]
