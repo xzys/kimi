@@ -5,7 +5,7 @@ import qualified  Data.Map.Strict    as M
 import            Data.Maybe            (isNothing, fromJust, fromMaybe, maybeToList)
 import            Data.List             (sort, group)
 import            Numeric               (log1p)
-
+import            Debug.Trace           (trace)
 
 type Molecule = String
 
@@ -37,7 +37,7 @@ dedup = map head . group . sort
 -- TODO account for when you have two same molecules reacting
 propensity :: SignalState -> MoleculeState -> Reaction -> Double
 propensity signals mols (Reaction _ rs cs _ xs r) =
-  sp * (fromIntegral mp) where
+  r * sp * (fromIntegral mp) where
     sp = product $ map (signals M.!) xs
     mp = product $ map (mols M.!) (rs++cs)
 
@@ -63,7 +63,7 @@ react rxs signals c@(CellState t mols) =
   in do
       r1 <- R.randomRIO (0, total) :: IO Double
       r2 <- R.randomRIO (0, 1) :: IO Double
-      putStrLn $ (show mols ++ " " ++ show r1)
+      -- putStrLn $ (show r1 ++ "\t " ++ show props)
       rx <- return $ indexFreqs r1 (zip rxs props)
       mols' <- return $ applyReaction rx mols
       t' <- return $ updateTime r2
@@ -79,12 +79,20 @@ simulate' rxs signals c@(CellState t mols) stop
     | otherwise = return c
 
 -- assign stop time based on multiple of steady state
+-- TODO calculate t_stop based on ode simulator
 simulate :: [Reaction] -> MoleculeState -> SignalState -> Int -> IO CellState 
-simulate rxs initMols signals n =
+simulate rxs initMols signals nss =
   let molset = dedup $ foldl (\agg (Reaction _ rs cs ps _ _) -> agg++rs++cs++ps) [] rxs
       c = CellState 0 $ M.fromList $ map (\a -> (a, M.findWithDefault 0 a initMols)) molset
-      tstop = (fromIntegral n) / (minimum $ map rate rxs)
+      tstop = (fromIntegral nss) / (minimum $ map rate rxs)
   in  simulate' rxs signals c tstop
+
+-- simulate x times
+duplicate :: [Reaction] -> MoleculeState -> SignalState -> Int -> Int -> IO [CellState]
+duplicate rxs initMols signals nss reps = sequence $ run []
+  where run results
+          | length results < reps = run $ (simulate rxs initMols signals nss):results
+          | otherwise = results
 
 
 reactions = 
@@ -95,11 +103,11 @@ reactions =
   , Reaction { gene = "gene1", reactants = ["m1"],       catalysts = [],      products = ["p1"],       signals = [],     rate = 0.2  }
   , Reaction { gene = "gene1", reactants = ["p1"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
 
-  , Reaction { gene = "gene2", reactants = ["g2", "p1"], catalysts = [],      products = ["ga2"],      signals = ["s1"], rate = 0.1  }
+  , Reaction { gene = "gene2", reactants = ["g2", "p1"], catalysts = [],      products = ["ga2"],      signals = [],     rate = 0.1  }
   , Reaction { gene = "gene2", reactants = ["ga2"],      catalysts = [],      products = ["p1", "g2"], signals = [],     rate = 0.05 }
   , Reaction { gene = "gene2", reactants = [],           catalysts = ["ga2"], products = ["m2"],       signals = [],     rate = 0.1  }
   , Reaction { gene = "gene2", reactants = ["m2"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
-  , Reaction { gene = "gene2", reactants = ["m2"],       catalysts = [],      products = ["p2"],       signals = [],     rate = 0.2  }
+  , Reaction { gene = "gene2", reactants = [],           catalysts = ["m2"],  products = ["p2"],       signals = [],     rate = 0.2  }
   , Reaction { gene = "gene2", reactants = ["p2"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
   ]
 
@@ -111,6 +119,10 @@ signals2 = M.fromList [("s1", 0.1)]
 -- TODO check performance of deterministric stdgen vs IO stdgen
 main :: IO ()
 main = do
-  c <- simulate reactions initMols signals1 2
-  putStrLn $ show c
+  putStrLn "starting run..."
+  cs <- duplicate reactions initMols signals1 3 10000
+  putStrLn $ "completed " ++ (show $ length cs) ++ " iterations."
+  let dist = map (\(CellState _ mols) -> mols M.! "p2") cs
+  let mean = (fromIntegral $ sum dist) / (fromIntegral $ length cs)
+  putStrLn $ "mean p2: " ++ show mean
 

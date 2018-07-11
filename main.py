@@ -77,7 +77,6 @@ def reaction(rx, state, signals, t):
     return t
 
 def stoch_sim(rx, initial_state, signals, t_stop, t_check, n):
-    state = initial_state.copy()
     results = []
 
     if t_stop == None:
@@ -96,6 +95,7 @@ def stoch_sim(rx, initial_state, signals, t_stop, t_check, n):
     for i in range(n):
         t = 0
         run_results = []
+        state = initial_state.copy()
         while t < t_stop:
             t = reaction(rx, state, signals, t)
             if t > t_check:
@@ -208,6 +208,7 @@ def param_opt_anneal(rx, initial_state, signals_1, signals_2, t_stop, t_check, n
     cooling_rate = 0.3
     results_1, results_2 = stoch_sim(rx, initial_state, signals_1, t_stop, t_check, n), stoch_sim(rx, initial_state, signals_2, t_stop, t_check, n)
     bo = calc_overlap(results_1, results_2)
+    results_1n, results_2n = None, None
     while bo > 0.5:
         beta = True
         while beta == True:
