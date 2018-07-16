@@ -1,0 +1,16 @@
++genesim
+  (A)
+
+
+mvars
+  - current params
+    - inital molucules
+    - set of signals to proess
+    - reactions
+    - number of runs
+  - queue of results
+two threads
+  run simulator
+  run snap server
+    - receive params -> put into mvar
+      - when params changed, run new params

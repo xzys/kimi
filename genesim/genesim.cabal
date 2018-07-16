@@ -18,7 +18,12 @@ executable genesim
   main-is:             Main.hs
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
+  other-modules:       Gillepsie
   build-depends:       base >= 4.7 && < 5,
                        containers,
+                       time,
                        random,
-                       time
+                       snap-core,
+                       snap-server,
+                       aeson,
+                       bytestring
