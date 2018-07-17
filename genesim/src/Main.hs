@@ -15,11 +15,10 @@ import           Gillepsie
 
 
 data SimulateMessage = SimulateMessage {
-  message ::      String,
-  reactions ::    [Reaction],
-  signals ::      M.Map String SignalState,
-  initMols ::     MoleculeState,
-  replicates ::   Int 
+  reactions ::   [Reaction],
+  signals ::     M.Map String SignalState,
+  initMols ::    MoleculeState,
+  replicates ::  Int 
 } deriving (Generic, FromJSON, ToJSON, Show)
 
 
