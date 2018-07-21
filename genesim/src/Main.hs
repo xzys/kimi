@@ -14,9 +14,14 @@ import qualified Data.Map.Strict          as M
 import           Gillepsie
 
 
+data SignalSet = SignalSet {
+  name ::        String,
+  signals ::     SignalStatem
+} deriving (Generic, FromJSON, ToJSON, Show)
+
 data SimulateMessage = SimulateMessage {
   reactions ::   [Reaction],
-  signals ::     M.Map String SignalState,
+  signals ::     [SignalSet],
   initMols ::    MoleculeState,
   replicates ::  Int 
 } deriving (Generic, FromJSON, ToJSON, Show)

@@ -27,78 +27,32 @@ body, html {
 
 /* Panes */
 
-.pane {}
+.pane {
+  display: flex;
+  flex-direction: column;
+}
+.pane header {
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
+}
 
-.pane-title, .pane-label{
+.pane-title, .section-label {
 	font-family: Inconsolata;
 }
 .pane-title {
   font-size: 1.2rem;
   padding: 1rem;
-  padding-bottom: 0;
-}
-.pane-label {
-  padding: 0.5rem 0rem;
-  padding-top: 2rem;
+
 }
 .pane-content {
-  padding: 1rem;
-  padding-top: 0;
-}
-
-
-
-/* Reactions */
-
-.reactions {
   flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  padding-top: 0.5rem;
 }
 
-.reaction-group {
-  display: flex;
-}
-
-.reaction-group input {
-  min-width: 2em;
-  border: none;
-  border-bottom: 1px solid #888;
+.section-label {
   padding: 0.5rem 0rem;
 }
-
-.reaction-wrapper {
-  display: flex;
-}
-
-.reaction, .gene {
-  display: flex;
-  align-items: flex-end;
-  margin-right: 0.5rem;
-}
-.reaction {
-  flex: 1;
-}
-.reaction-arrow {
-  padding: 0.5rem 0.25rem;
-}
-.reaction input {
-  flex: 1;
-  word-spacing: 150%;
-}
-
-.gene > input {
-  opacity: 0;
-}
-.gene.visible > input, 
-.gene:hover > input, 
-.gene > input:focus {
-  opacity: 1;
-  transition: 500ms;
-}
-
-.rate {
-  display: flex;
-  align-items: flex-end;
-}
-.rate input {
-  width: 3rem;
+.section {
+  margin-bottom: 1rem;
 }
