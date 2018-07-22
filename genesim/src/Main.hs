@@ -16,12 +16,12 @@ import           Gillepsie
 
 data SignalSet = SignalSet {
   name ::        String,
-  signals ::     SignalStatem
+  signals ::     SignalState
 } deriving (Generic, FromJSON, ToJSON, Show)
 
 data SimulateMessage = SimulateMessage {
   reactions ::   [Reaction],
-  signals ::     [SignalSet],
+  signalSets ::  [SignalSet],
   initMols ::    MoleculeState,
   replicates ::  Int 
 } deriving (Generic, FromJSON, ToJSON, Show)

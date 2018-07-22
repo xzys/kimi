@@ -75,7 +75,7 @@ const Signal = (props) => {
       </div>
       <span className="signal-equals">{"\u003D"}</span>
       <div className="signal-value">
-        <input placeholder="value" type="number"
+        <input placeholder="value" type="number" step="any"
           onKeyPress={handleKeyPress}
           onChange={editValue}
           />
@@ -104,8 +104,8 @@ const SignalSet = (props) => {
 }
 
 const Signals = (props) => {
-  const { signalsets, handleKeyPress, handleChange } = props;
-  const signalSets = signalsets.map((ss, i) => (
+  const { signalSets, handleKeyPress, handleChange } = props;
+  const signalSets_ = signalSets.map((ss, i) => (
     <SignalSet key={ss.id} index={i} name={ss.name} signals={ss.signals}
       handleKeyPress={handleKeyPress}
       handleChange={handleChange}
@@ -113,7 +113,7 @@ const Signals = (props) => {
   ));
   return (
     <div className="signal-sets">
-      {signalSets}
+      {signalSets_}
     </div>
   );
 }
@@ -132,7 +132,7 @@ const Molecule = (props) => {
       <div className="molecule-count">
         <input size={5} placeholder="count" type="number"
           onChange={handleChange}
-          value={count}/>
+          value={count.toString()}/>
       </div>
     </div>
   );
@@ -179,15 +179,43 @@ const emptySignalSet = (name) => ({
   signals: [emptySignal()]
 });
 
+
+const dedupe = arr => [...new Set(arr)];
+const inArray = arr => x => arr.indexOf(x) !== -1;
+const notInArray = arr => x => arr.indexOf(x) === -1;
+
+// parse reaction expression
 const parseExpression = s => s.split('+').map(s => s.trim()).filter(Boolean);
 
+// extract set of signals from signalsets
+const reduceSignalSets = (signalSets) => {
+	const signals = signalSets.reduce(
+		(acc, ss) => acc.concat(ss.signals.map(s => s.signal.trim())).filter(Boolean),
+		[]);
+	return dedupe(signals);
+}
+
+// get list of molecules from reactions current molecules and signals
+const syncMolecules = (reactions, molecules, signalSets) => {
+	const signals = reduceSignalSets(signalSets);
+	const allMolecules = dedupe(reactions.reduce(
+		(acc, r) => acc.concat(parseExpression(r.reactants), parseExpression(r.products)),
+		[]))
+		.filter(notInArray(signals));
+	return allMolecules.reduce(
+		(acc, m) => {acc[m] = molecules[m] || 0; return acc;},
+		{});
+}
+
+
+// TODO only sync molecules on blur
 class Parameters extends Component {
   constructor() {
     super();
     this.state = {
       reactions: [emptyReaction()],
       molecules: {},
-      signalsets: [
+      signalSets: [
         emptySignalSet('Signals A'),
         emptySignalSet('Signals B'),
       ]
@@ -197,6 +225,7 @@ class Parameters extends Component {
     this.moleculesEditCount = this.moleculesEditCount.bind(this);
     this.signalsHandleKeyPress = this.signalsHandleKeyPress.bind(this);
     this.signalsHandleChange = this.signalsHandleChange.bind(this);
+    this.startSimulation = this.startSimulation.bind(this);
   }
 
   reactionsHandleKeyPress(i, e) {
@@ -208,40 +237,64 @@ class Parameters extends Component {
   }
 
   reactionsHandleChange(i, key, value) {
-    const newReactions = update(this.state.reactions, {[i]: {[key]: {$set: value}}});
-    const allMolecules = newReactions.reduce(
-      (acc, r) => acc.concat(parseExpression(r.reactants), parseExpression(r.products)),
-      []);
-    const newMolecules = allMolecules.reduce((acc, m) => {
-      acc[m] = this.state.molecules[m] || 0;
-      return acc;
-    }, {});
+    const newReactions = update(this.state.reactions, {[i]: {[key]: 
+			{$set: key == 'rate' ? parseFloat(value) : value}}});
     this.setState({
       reactions: newReactions,
-      molecules: newMolecules
+      molecules: syncMolecules(newReactions, this.state.molecules, this.state.signalSets)
     });
   }
 
   moleculesEditCount(m, count) {
-    this.setState({molecules: update(this.state.molecules, {[m]: {$set: count}})});
+    this.setState({molecules: update(this.state.molecules, {[m]: {$set: parseInt(count)}})});
   }
 
-  signalsHandleKeyPress(signalsetIndex, signalIndex, e) {
-    if (e.key == 'Enter') {
+  signalsHandleKeyPress(signalSetIndex, signalIndex, e) {
+    if (e.key === 'Enter') {
       this.setState({
-        signalsets: update(this.state.signalsets, 
-          {[signalsetIndex]: {signals: {$splice: [[signalIndex+1, 0, emptySignal()]]}}})
+        signalSets: update(this.state.signalSets, 
+          {[signalSetIndex]: {signals: {$splice: [[signalIndex+1, 0, emptySignal()]]}}})
       });
     }
   }
 
-  signalsHandleChange(signalsetIndex, signalIndex, field, value) {
-    console.log(signalsetIndex, signalIndex, field, value);
+  signalsHandleChange(signalSetIndex, signalIndex, field, value) {
+		const newSignalSets = update(this.state.signalSets, 
+        {[signalSetIndex]: {signals: {[signalIndex]: {[field]:
+					{$set: field == 'value' ? parseFloat(value) : value}}}}});
     this.setState({
-      signalsets: update(this.state.signalsets, 
-        {[signalsetIndex]: {signals: {[signalIndex]: {[field]: {$set: value}}}}})
+      signalSets: newSignalSets,
+			molecules: syncMolecules(this.state.reactions, this.state.molecules, newSignalSets)
     })
   }
+	
+	// transform state to appropriate API form
+	startSimulation() {
+		const allSignals = reduceSignalSets(this.state.signalSets);
+		const reactions = this.state.reactions.map(r => {
+			const products = parseExpression(r.products);
+			const reactants_ = parseExpression(r.reactants);
+			const reactants = reactants_.filter(notInArray(allSignals));
+			const signals = reactants_.filter(inArray(allSignals));
+			return {
+				gene: r.gene,
+				products: products,
+				reactants: reactants.filter(notInArray(products)),
+				catalysts: reactants.filter(inArray(products)),
+				signals: signals,
+				rate: parseFloat(r.rate),
+			};
+		});
+		const signalSets = this.state.signalSets.map(ss => ({
+			name: ss.name,
+			signals: ss.signals.reduce(
+				(acc, s) => {acc[s.signal] = s.value; return acc;},
+				{})
+		}));
+		const initMols = this.state.molecules;
+		const params = { reactions, initMols, signalSets, replicates: 1000 };
+		this.props.startSimulation(params);
+	}
 
   render() {
     return (
@@ -259,7 +312,7 @@ class Parameters extends Component {
           </div>
           <div className="section-label">Signal Sets</div>
           <div className="section">
-            <Signals signalsets={this.state.signalsets}
+            <Signals signalSets={this.state.signalSets}
               handleKeyPress={this.signalsHandleKeyPress}
               handleChange={this.signalsHandleChange}
               />
@@ -271,6 +324,9 @@ class Parameters extends Component {
               />
           </div>
         </div>
+				<div className="buttons">
+					<div className="start button" onClick={this.startSimulation}/>
+				</div>
       </div>
     )
   }

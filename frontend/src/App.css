@@ -15,6 +15,7 @@ body, html {
 
 .parameters {
   flex: 3;
+  background: #F7F8F9;
 }
 
 .results {

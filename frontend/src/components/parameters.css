@@ -95,9 +95,7 @@
 
 /* Common */
 
-.reactions input,
-.signal-sets input,
-.molecules input {
+.parameters input {
   min-width: 2em;
   border: none;
   border-bottom: 1px solid #888;
@@ -108,11 +106,45 @@
 
 .molecules input:disabled,
 .signal-sets input:disabled {
-  background: #fff;
+  background: rgba(0,0,0,0);
 }
 
 .reaction-arrow,
 .molecule-equals,
 .signal-equals {
   padding: 0.5rem 0.25rem;
+}
+
+/* Buttons */
+
+.buttons {
+  position: relative;
+}
+
+.start.button {
+	position: absolute;
+	right: 2rem;
+	bottom: 2rem;
+	width: 3.5rem;
+	height: 3.5rem;
+	border-radius: 3.5rem;
+	background: #14BC65;
+	box-shadow: 0 3px 3px rgba(120, 191, 154, 0.8);
+  cursor: pointer;
+  transition: 500ms;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.start.button:after {
+  content: "\21E2";
+  font-size: 1.5rem;
+  color: #fff;
+  transform: translateY(1px); 
+}
+
+.start.button:hover {
+  transform: translateY(-5px);
+	box-shadow: 0 15px 15px rgba(120, 191, 154, 0.4);
 }
