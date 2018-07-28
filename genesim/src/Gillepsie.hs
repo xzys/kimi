@@ -24,7 +24,7 @@ data Reaction = Reaction {
   rate ::       Double
 } deriving (Generic, FromJSON, ToJSON, Eq, Show)
 
-type MoleculeState = M.Map Molecule Int
+type MoleculeState = M.Map Molecule Integer
 
 type SignalState = M.Map Molecule Double
 
@@ -79,33 +79,34 @@ react rxs signals c@(CellState t mols) =
 
 --------------------------------------------------------------------------------
 -- run until stop time
-simulate' :: [Reaction] -> SignalState -> CellState -> Double -> IO CellState 
-simulate' rxs signals c@(CellState t mols) stop
-    | t < stop = do
+simulate' :: [Reaction] -> SignalState -> CellState -> Double -> Double -> Double -> [CellState] -> IO [CellState]
+simulate' rxs signals c@(CellState t mols) tstop tcheck tnext css
+    | t < tstop = do
         c' <- react rxs signals c
-        simulate' rxs signals c' stop
-    | otherwise = return c
+        let (css', tnext') = if t < tnext then (css, tcheck) else (c':css, tnext + tcheck)
+        simulate' rxs signals c' tstop tcheck tnext' css'
+    | otherwise = return css
 
 -- assign stop time based on multiple of steady state
 -- TODO calculate t_stop based on ode simulator
-simulate :: [Reaction] -> MoleculeState -> SignalState -> Int -> IO CellState 
-simulate rxs initMols signals nss =
+simulate :: [Reaction] -> MoleculeState -> SignalState -> Int -> Double -> IO [CellState]
+simulate rxs initMols signals nss tcheck =
   let molset = dedup $ foldl (\agg (Reaction _ rs cs ps _ _) -> agg++rs++cs++ps) [] rxs
       c = CellState 0 $ M.fromList $ map (\a -> (a, M.findWithDefault 0 a initMols)) molset
       tstop = (fromIntegral nss) / (minimum $ map rate rxs)
-  in  simulate' rxs signals c tstop
+  in  simulate' rxs signals c tstop tcheck tcheck []
 
 -- simulate x times
-duplicate :: [Reaction] -> MoleculeState -> SignalState -> Int -> Int -> IO [CellState]
+duplicate :: [Reaction] -> MoleculeState -> SignalState -> Int -> Int -> IO [[CellState]]
 duplicate rxs initMols signals nss reps = sequence $ run []
   where run results
-          | length results < reps = run $ (simulate rxs initMols signals nss):results
+          | length results < reps = run $ (simulate rxs initMols signals nss 1.0):results
           | otherwise = results
 
 
 --------------------------------------------------------------------------------
 -- setup and run
-reactions = 
+reactions_ = 
   [ Reaction { gene = "gene1", reactants = ["g1"],       catalysts = [],      products = ["ga1"],      signals = ["s1"], rate = 0.1  }
   , Reaction { gene = "gene1", reactants = ["ga1"],      catalysts = [],      products = ["g1"],       signals = [],     rate = 0.05 }
   , Reaction { gene = "gene1", reactants = [],           catalysts = ["ga1"], products = ["m1"],       signals = [],     rate = 0.1  }
@@ -121,10 +122,9 @@ reactions =
   , Reaction { gene = "gene2", reactants = ["p2"],       catalysts = [],      products = [],           signals = [],     rate = 0.01 }
   ]
 
-initMols = M.fromList [("g1", 1), ("g2", 1)]
-
-signals1 = M.fromList [("s1", 0.1)]
-signals2 = M.fromList [("s1", 0.1)]
+initMols_ = M.fromList [("g1", 1), ("g2", 1)]
+signals1_ = M.fromList [("s1", 0.1)]
+signals2_ = M.fromList [("s1", 0.1)]
 
 
 {-

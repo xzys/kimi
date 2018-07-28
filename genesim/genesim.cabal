@@ -26,4 +26,5 @@ executable genesim
                        snap-core,
                        snap-server,
                        aeson,
-                       bytestring
+                       bytestring,
+                       transformers

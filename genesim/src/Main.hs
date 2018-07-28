@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DuplicateRecordFields #-}
 
 module Main where
 
@@ -6,7 +6,7 @@ import qualified Snap.Core                as S
 import qualified Snap.Http.Server         as S
 import           Data.Aeson               as A
 import           Data.Maybe               (fromMaybe, fromJust)
-
+import           Control.Monad.IO.Class   (liftIO)
 import           GHC.Generics             (Generic)
 import qualified Data.ByteString.Char8    as B
 import qualified Data.Map.Strict          as M
@@ -21,9 +21,25 @@ data SignalSet = SignalSet {
 
 data SimulateMessage = SimulateMessage {
   reactions ::   [Reaction],
-  signalSets ::  [SignalSet],
   initMols ::    MoleculeState,
+  signalSets ::  [SignalSet],
   replicates ::  Int 
+} deriving (Generic, FromJSON, ToJSON, Show)
+
+
+
+data TimeSeries = TimeSeries {
+  times ::       [Double],
+  molecules ::   M.Map Molecule [Integer]
+} deriving (Generic, FromJSON, ToJSON, Show)
+
+data ReturnType = ReturnType {
+  signal ::      String,
+  timeseries ::  [TimeSeries]
+} deriving (Generic, FromJSON, ToJSON, Show)
+
+data DataMessage = DataMessage {
+  results ::     [ReturnType]
 } deriving (Generic, FromJSON, ToJSON, Show)
 
 
@@ -40,7 +56,6 @@ finishEarly code str = do
   S.getResponse >>= S.finishWith
 
 maxBodyLen = 1000000
--- has no type right now, but needs to be used with type in order to compile
 readBodyJSON :: (S.MonadSnap m, FromJSON a) => m (Either String a)
 readBodyJSON = do
   body <- A.decode `fmap` S.readRequestBody maxBodyLen
@@ -59,10 +74,23 @@ parseBodyJSON = do
 
 --------------------------------------------------------------------------------
 -- handlers
+
+shapeCS :: [CellState] -> TimeSeries
+shapeCS css = 
+  let ts = map time css
+      allMols = M.keys $ molecules (head css :: CellState)
+      extract m = map (\(CellState _ ms) -> ms M.! m) css
+      mols = M.fromList $ zip allMols $ map extract allMols
+  in  TimeSeries ts mols
+
 handleSimulate :: S.Snap ()
 handleSimulate = S.method S.POST $ do
-  msg <- parseBodyJSON :: S.Snap SimulateMessage
-  S.writeLBS $ A.encode $ msg 
+  msg@(SimulateMessage rxs initMols sss reps) <- parseBodyJSON :: S.Snap SimulateMessage
+  -- res <- liftIO $ flip mapM sss $ \(SignalSet n ss) -> duplicate rxs initMols ss 3 reps
+  cssss <- liftIO $ flip mapM sss $ \(SignalSet n ss) -> duplicate reactions_ initMols_ signals1_ 3 100
+  let rss = zip (map name sss) ((map . map) shapeCS cssss)
+  S.writeLBS $ A.encode (DataMessage $ map (uncurry ReturnType) rss)
+
 
 main :: IO ()
 main =
