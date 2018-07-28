@@ -1,16 +1,16 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, BangPatterns #-}
 
 module Gillepsie where
 
-import qualified System.Random        as R
-import qualified Data.Map.Strict      as M
-import           Data.Maybe              (isNothing, fromJust, fromMaybe)
-import           Data.List               (sort, group)
-import           Numeric                 (log1p)
-import           Debug.Trace             (trace)
-import           GHC.Generics            (Generic)
-
-import           Data.Aeson           as A
+import qualified System.Random            as R
+import qualified Data.Map.Strict          as M
+import           Data.Maybe               (isNothing, fromJust, fromMaybe)
+import           Data.List                (sort, group)
+import           Numeric                  (log1p)
+import           Debug.Trace              (trace)
+import           GHC.Generics             (Generic)
+import           Data.Aeson               as A
+import           Control.DeepSeq          (force)
 
 
 type Molecule = String
@@ -100,7 +100,7 @@ simulate rxs initMols signals nss tcheck =
 duplicate :: [Reaction] -> MoleculeState -> SignalState -> Int -> Int -> IO [[CellState]]
 duplicate rxs initMols signals nss reps = sequence $ run []
   where run results
-          | length results < reps = run $ (simulate rxs initMols signals nss 1.0):results
+          | length results < reps = run $ (simulate rxs initMols signals nss 10.0):results
           | otherwise = results
 
 
