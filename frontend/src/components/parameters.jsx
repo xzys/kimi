@@ -297,6 +297,10 @@ class Parameters extends Component {
 	}
 
   render() {
+		const { errors } = this.props;
+		const errors_ = errors.map((err, i) => (
+			<div className="error" key={i}>{err}</div>
+		));
     return (
       <div className="parameters pane">
         <header>
@@ -324,6 +328,9 @@ class Parameters extends Component {
               />
           </div>
         </div>
+				<div className="errors">
+					{errors_}
+				</div>
 				<div className="buttons">
 					<div className="start button" onClick={this.startSimulation}/>
 				</div>

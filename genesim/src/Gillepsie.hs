@@ -48,7 +48,6 @@ propensity signals mols (Reaction _ rs cs _ xs rate) =
     sp = product $ map (signals M.!) xs
     mp = product $ map (mols M.!) (rs++cs)
 
-
 -- TODO possible speed improvement 
 -- https://jaspervdj.be/posts/2013-11-21-random-element-frequency-list.html 
 react :: [Reaction] -> SignalState -> CellState -> IO CellState
@@ -76,14 +75,18 @@ react rxs signals c@(CellState t mols) =
       t' <- return $ updateTime r2
       return (CellState t' mols')
 
+allMols :: [Reaction] -> [Molecule]
+allMols rxs = dedup $ foldl (\agg (Reaction _ rs cs ps _ _) -> agg++rs++cs++ps) [] rxs
 
 --------------------------------------------------------------------------------
 -- run until stop time
 simulate' :: [Reaction] -> SignalState -> CellState -> Double -> Double -> Double -> [CellState] -> IO [CellState]
 simulate' rxs signals c@(CellState t mols) tstop tcheck tnext css
     | t < tstop = do
-        c' <- react rxs signals c
-        let (css', tnext') = if t < tnext then (css, tcheck) else (c':css, tnext + tcheck)
+        (CellState t' mols') <- react rxs signals c
+        let c' = CellState (min tstop t') mols'
+        let (css', tnext') = if t' < tnext then (css, tnext)
+                             else (c':css, tcheck * fromIntegral (ceiling (t'/tcheck)))
         simulate' rxs signals c' tstop tcheck tnext' css'
     | otherwise = return css
 
@@ -91,8 +94,7 @@ simulate' rxs signals c@(CellState t mols) tstop tcheck tnext css
 -- TODO calculate t_stop based on ode simulator
 simulate :: [Reaction] -> MoleculeState -> SignalState -> Int -> Double -> IO [CellState]
 simulate rxs initMols signals nss tcheck =
-  let molset = dedup $ foldl (\agg (Reaction _ rs cs ps _ _) -> agg++rs++cs++ps) [] rxs
-      c = CellState 0 $ M.fromList $ map (\a -> (a, M.findWithDefault 0 a initMols)) molset
+  let c = CellState 0 $ M.fromList $ map (\a -> (a, M.findWithDefault 0 a initMols)) $ allMols rxs
       tstop = (fromIntegral nss) / (minimum $ map rate rxs)
   in  simulate' rxs signals c tstop tcheck tcheck []
 

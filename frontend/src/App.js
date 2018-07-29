@@ -5,31 +5,36 @@ import './App.css';
 
 //+'?'+Object.keys(params).map(k => k+'='+params[k]).join('&')
 const http = (method, data, callback, error) => {
-  fetch('http://localhost:8000/'+method, {
-      mode: 'no-cors',
+  fetch('http://localhost/api/'+method, {
       cache: 'no-cache',
       method: 'POST',
+      // mode: 'cors',
+      // headers: {
+      //   'Accept': 'application/json',
+      //   'Content-Type': 'application/json'
+      // },
       body: JSON.stringify(data),
     })
-    .then(res => res.status === 200 ? res.json() : error(res))
-    .then(callback)
-    .catch(error);
+    .then(res => Promise.all([res.ok, res.json()]))
+    .then(([ok, data]) => (ok ? callback : error)(data))
+    .catch(console.log);
 }
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
-      data: undefined,
+      results: [],
       errors: [],
     };
+    this.startSimulation = this.startSimulation.bind(this);
   }
 
   startSimulation(params) {
     http('simulate', params, data => {
-      console.log(data); 
-    }, err => {
-      console.log(err);
+      this.setState({results: data.results});
+    }, data => {
+      this.setState({errors: data.errors});
     })
   }
 
@@ -38,8 +43,11 @@ class App extends Component {
       <div className="root">
         <Parameters
           startSimulation={this.startSimulation}
+          errors={this.state.errors}
           />
-        <Data/>
+        <Data
+          results={this.state.results}
+          />
       </div>
     );
   }
