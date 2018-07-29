@@ -14,6 +14,7 @@
 	left: 0;
 }
 
+
 .series > path {
   fill: none;
   opacity: 0.3;
@@ -24,14 +25,19 @@
 }
 
 .axis path, 
-.axis line,
-.axis text {
+.axis line {
 	stroke: #fff;
 	opacity: 0.5;	
 }
 
 .axis text {
 	fill: #fff;
-	font-weight: lighter;
 	opacity: 0.5;	
+	font-weight: lighter;
+}
+
+.label > text {
+	fill: #fff;
+	opacity: 0.5;
+	font-weight: lighter;
 }

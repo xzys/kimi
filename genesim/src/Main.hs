@@ -95,10 +95,13 @@ shapeCS mols css =
       molcounts = M.fromList $ zip mols $ map extract mols
   in  TimeSeries ts molcounts
 
+
+sss_ = [SignalSet "Signals A" signals1_, SignalSet "Signals B" signals2_]
+
 handleSimulate :: S.Snap ()
 handleSimulate = S.method S.POST $ S.applyCORS S.defaultOptions $ do
   msg@(SimulateMessage rxs initMols sss reps) <- parseBodyJSON :: S.Snap SimulateMessage
-  cssss <- liftIO $ flip mapM sss $ \(SignalSet n ss) -> duplicate reactions_ initMols_ signals1_ 3 10
+  cssss <- liftIO $ flip mapM sss_ $ \(SignalSet n ss) -> duplicate reactions_ initMols_ ss 3 100
   let tss = (map . map) (shapeCS $ allMols reactions_) cssss
   let resp = DataMessage $ map (uncurry ReturnType) $ zip (map name sss) tss
   S.writeLBS $ A.encode resp
@@ -113,7 +116,7 @@ main =
 -- this shows errors that snap would have otherwise eaten up
 main :: IO ()
 main = do
-  let sss = [SignalSet "Signals A" signals1_, SignalSet "Signals B" signals2_]
+  let 
   cssss <- flip mapM sss $ \(SignalSet n ss) -> trace ("signals: " ++ n) $ duplicate reactions_ initMols_ ss 3 1000
   let rss = zip (map name sss) ((map . map) shapeCS cssss)
   let resp = DataMessage $ map (uncurry ReturnType) rss

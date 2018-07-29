@@ -53,6 +53,11 @@ class Graphs extends Component {
     graphs.append("g")
       .attr("class", "axis axis-y")
       .call(yAxis)
+    graphs.append('g')
+      .attr('class', 'label')
+      .attr('transform', 'translate(5, 10)')
+      .append('text')
+        .text(result => result.signal)
     graphs.exit().remove();
 
     const lineExtractor = mol => series => d3.line()
